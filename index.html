@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Neon Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #0a0e27;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #three-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .calculator-container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .calculator {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 
+                0 0 60px rgba(99, 102, 241, 0.4),
+                0 0 120px rgba(139, 92, 246, 0.2),
+                inset 0 0 40px rgba(99, 102, 241, 0.1);
+            animation: float 6s ease-in-out infinite;
+            transform-style: preserve-3d;
+            max-width: 450px;
+            width: 100%;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotateX(0deg); }
+            50% { transform: translateY(-20px) rotateX(2deg); }
+        }
+
+        .title {
+            font-family: 'Orbitron', monospace;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 900;
+            margin: 0 0 24px 0;
+            padding: 0;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));
+            }
+            to {
+                filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.8));
+            }
+        }
+
+        #history {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.875rem;
+            color: rgba(139, 92, 246, 0.7);
+            text-align: right;
+            margin: 0 0 10px 0;
+            padding: 0 4px;
+            min-height: 20px;
+            line-height: 20px;
+        }
+
+        .display {
+            font-family: 'Orbitron', monospace;
+            background: linear-gradient(135deg, rgba(17, 24, 39, 0.9), rgba(30, 41, 59, 0.9));
+            border: 2px solid rgba(139, 92, 246, 0.4);
+            border-radius: 16px;
+            padding: 24px 20px;
+            margin: 0 0 20px 0;
+            min-height: 80px;
+            text-align: right;
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 
+                0 0 10px rgba(99, 102, 241, 0.8),
+                0 0 20px rgba(139, 92, 246, 0.6);
+            box-shadow: 
+                inset 0 2px 20px rgba(99, 102, 241, 0.2),
+                0 4px 20px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            position: relative;
+            word-wrap: break-word;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .display::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(99, 102, 241, 0.1),
+                transparent
+            );
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%) translateY(-100%); }
+            100% { transform: translateX(100%) translateY(100%); }
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 0 0 20px 0;
+        }
+
+        .calc-btn {
+            font-family: 'Orbitron', monospace;
+            padding: 22px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.8));
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 4px 15px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .calc-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.6), transparent);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .calc-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .calc-btn:hover {
+            transform: translateY(-4px) scale(1.05);
+            border-color: rgba(139, 92, 246, 0.8);
+            box-shadow: 
+                0 8px 25px rgba(99, 102, 241, 0.5),
+                0 0 30px rgba(139, 92, 246, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        .calc-btn:active {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 
+                0 4px 15px rgba(99, 102, 241, 0.6),
+                inset 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .operator {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.6), rgba(99, 102, 241, 0.6));
+            border-color: rgba(139, 92, 246, 0.5);
+        }
+
+        .operator:hover {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.8), rgba(99, 102, 241, 0.8));
+            border-color: rgba(139, 92, 246, 0.9);
+        }
+
+        .equals {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.6), rgba(219, 39, 119, 0.6));
+            border-color: rgba(236, 72, 153, 0.5);
+        }
+
+        .equals:hover {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.8), rgba(219, 39, 119, 0.8));
+            border-color: rgba(236, 72, 153, 0.9);
+            box-shadow: 
+                0 8px 25px rgba(236, 72, 153, 0.6),
+                0 0 30px rgba(219, 39, 119, 0.5);
+        }
+
+        .clear {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.6), rgba(220, 38, 38, 0.6));
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .clear:hover {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.8));
+            border-color: rgba(239, 68, 68, 0.9);
+            box-shadow: 
+                0 8px 25px rgba(239, 68, 68, 0.6),
+                0 0 30px rgba(220, 38, 38, 0.5);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .calc-btn span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .credit-text {
+            text-align: center;
+            margin: 0;
+            padding: 12px 20px;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: rgba(139, 92, 246, 0.9);
+            text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+            letter-spacing: 1px;
+        }
+
+        /* Tablet styles */
+        @media (max-width: 768px) {
+            .calculator {
+                padding: 24px;
+                max-width: 400px;
+            }
+            
+            .title {
+                font-size: 1.75rem;
+                margin: 0 0 20px 0;
+            }
+
+            #history {
+                font-size: 0.825rem;
+                margin: 0 0 8px 0;
+            }
+            
+            .display {
+                font-size: 2rem;
+                padding: 20px 18px;
+                min-height: 75px;
+                margin: 0 0 18px 0;
+            }
+            
+            .calc-btn {
+                padding: 20px;
+                font-size: 1.35rem;
+            }
+            
+            .button-grid {
+                gap: 10px;
+                margin: 0 0 18px 0;
+            }
+
+            .credit-text {
+                font-size: 0.85rem;
+                padding: 10px 16px;
+            }
+        }
+
+        /* Mobile styles */
+        @media (max-width: 640px) {
+            .calculator-container {
+                padding-bottom: 5px;
+            }
+            
+            .calculator {
+                padding: 20px;
+                border-radius: 20px;
+                max-width: 100%;
+            }
+            
+            .title {
+                font-size: 1.5rem;
+                margin: 0 0 16px 0;
+            }
+
+            #history {
+                font-size: 0.75rem;
+                margin: 0 0 8px 0;
+                padding: 0 2px;
+            }
+            
+            .display {
+                font-size: 1.75rem;
+                padding: 18px 16px;
+                min-height: 70px;
+                margin: 0 0 16px 0;
+            }
+            
+            .calc-btn {
+                padding: 18px 12px;
+                font-size: 1.25rem;
+                border-radius: 10px;
+            }
+            
+            .button-grid {
+                gap: 8px;
+                margin: 0 0 16px 0;
+            }
+
+            .credit-text {
+                font-size: 0.8rem;
+                padding: 8px 12px;
+            }
+
+            @keyframes float {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-10px); }
+            }
+        }
+
+        /* Small mobile styles */
+        @media (max-width: 400px) {
+            .calculator {
+                padding: 16px;
+            }
+            
+            .title {
+                font-size: 1.25rem;
+                margin: 0 0 14px 0;
+            }
+
+            #history {
+                font-size: 0.7rem;
+                margin: 0 0 6px 0;
+            }
+            
+            .display {
+                font-size: 1.5rem;
+                padding: 16px 14px;
+                min-height: 65px;
+                margin: 0 0 14px 0;
+            }
+            
+            .calc-btn {
+                padding: 16px 8px;
+                font-size: 1.1rem;
+            }
+            
+            .button-grid {
+                gap: 6px;
+                margin: 0 0 14px 0;
+            }
+
+            .credit-text {
+                font-size: 0.75rem;
+                padding: 6px 10px;
+            }
+        }
+
+        /* Large desktop styles */
+        @media (min-width: 1024px) {
+            .calculator {
+                max-width: 500px;
+                padding: 36px;
+            }
+            
+            .title {
+                font-size: 2.25rem;
+                margin: 0 0 28px 0;
+            }
+
+            #history {
+                font-size: 0.95rem;
+                margin: 0 0 12px 0;
+            }
+            
+            .display {
+                font-size: 2.5rem;
+                padding: 28px 24px;
+                min-height: 95px;
+                margin: 0 0 24px 0;
+            }
+            
+            .calc-btn {
+                padding: 26px;
+                font-size: 1.6rem;
+            }
+            
+            .button-grid {
+                gap: 14px;
+                margin: 0 0 24px 0;
+            }
+
+            .credit-text {
+                font-size: 1rem;
+                padding: 14px 24px;
+            }
+        }
+
+        /* Landscape mobile orientation */
+        @media (max-height: 600px) and (orientation: landscape) {
+            .calculator-container {
+                padding: 10px;
+            }
+            
+            .calculator {
+                padding: 20px;
+                max-width: 600px;
+            }
+            
+            .title {
+                font-size: 1.25rem;
+                margin: 0 0 12px 0;
+            }
+
+            #history {
+                font-size: 0.7rem;
+                margin: 0 0 6px 0;
+            }
+            
+            .display {
+                font-size: 1.5rem;
+                padding: 14px 12px;
+                min-height: 55px;
+                margin: 0 0 12px 0;
+            }
+            
+            .calc-btn {
+                padding: 12px;
+                font-size: 1.1rem;
+            }
+            
+            .button-grid {
+                gap: 6px;
+                margin: 0 0 12px 0;
+            }
+
+            .credit-text {
+                font-size: 0.75rem;
+                padding: 6px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="three-container"></div>
+    
+    <div class="calculator-container">
+        <div class="calculator">
+            <h1 class="title">CALCULATOR</h1>
+            <div id="history">&#8203;</div>
+            <div class="display" id="display">0</div>
+            <div class="button-grid">
+                <button class="calc-btn clear" onclick="clearDisplay()"><span>C</span></button>
+                <button class="calc-btn operator" onclick="appendOperator('/')"><span>÷</span></button>
+                <button class="calc-btn operator" onclick="appendOperator('*')"><span>×</span></button>
+                <button class="calc-btn operator" onclick="deleteLast()"><span>←</span></button>
+                
+                <button class="calc-btn" onclick="appendNumber('7')"><span>7</span></button>
+                <button class="calc-btn" onclick="appendNumber('8')"><span>8</span></button>
+                <button class="calc-btn" onclick="appendNumber('9')"><span>9</span></button>
+                <button class="calc-btn operator" onclick="appendOperator('-')"><span>−</span></button>
+                
+                <button class="calc-btn" onclick="appendNumber('4')"><span>4</span></button>
+                <button class="calc-btn" onclick="appendNumber('5')"><span>5</span></button>
+                <button class="calc-btn" onclick="appendNumber('6')"><span>6</span></button>
+                <button class="calc-btn operator" onclick="appendOperator('+')"><span>+</span></button>
+                
+                <button class="calc-btn" onclick="appendNumber('1')"><span>1</span></button>
+                <button class="calc-btn" onclick="appendNumber('2')"><span>2</span></button>
+                <button class="calc-btn" onclick="appendNumber('3')"><span>3</span></button>
+                <button class="calc-btn operator" onclick="appendOperator('%')"><span>%</span></button>
+                
+                <button class="calc-btn" onclick="appendNumber('0')"><span>0</span></button>
+                <button class="calc-btn" onclick="appendNumber('.')"><span>.</span></button>
+                <button class="calc-btn equals" onclick="calculate()"><span>=</span></button>
+            </div>
+            <div class="credit-text">
+                Made by Farhaan
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Three.js Scene Setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('three-container').appendChild(renderer.domElement);
+
+        // Create animated particles
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 2000;
+        const posArray = new Float32Array(particlesCount * 3);
+        
+        for(let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 100;
+        }
+        
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: 0.15,
+            color: 0x6366f1,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+        
+        const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particlesMesh);
+
+        // Create glowing geometric shapes
+        const geometries = [
+            new THREE.TorusGeometry(8, 1, 16, 100),
+            new THREE.OctahedronGeometry(6),
+            new THREE.TetrahedronGeometry(5)
+        ];
+
+        const materials = [
+            new THREE.MeshBasicMaterial({ 
+                color: 0x6366f1, 
+                wireframe: true,
+                transparent: true,
+                opacity: 0.3
+            }),
+            new THREE.MeshBasicMaterial({ 
+                color: 0x8b5cf6, 
+                wireframe: true,
+                transparent: true,
+                opacity: 0.3
+            }),
+            new THREE.MeshBasicMaterial({ 
+                color: 0xec4899, 
+                wireframe: true,
+                transparent: true,
+                opacity: 0.3
+            })
+        ];
+
+        const meshes = [];
+        geometries.forEach((geometry, index) => {
+            const mesh = new THREE.Mesh(geometry, materials[index]);
+            mesh.position.set(
+                (Math.random() - 0.5) * 30,
+                (Math.random() - 0.5) * 30,
+                (Math.random() - 0.5) * 30 - 20
+            );
+            scene.add(mesh);
+            meshes.push(mesh);
+        });
+
+        camera.position.z = 30;
+
+        // Animation
+        let mouseX = 0;
+        let mouseY = 0;
+
+        document.addEventListener('mousemove', (event) => {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate particles
+            particlesMesh.rotation.x += 0.0005;
+            particlesMesh.rotation.y += 0.001;
+
+            // Rotate geometric shapes
+            meshes.forEach((mesh, index) => {
+                mesh.rotation.x += 0.002 * (index + 1);
+                mesh.rotation.y += 0.003 * (index + 1);
+                mesh.rotation.z += 0.001 * (index + 1);
+            });
+
+            // Camera follows mouse
+            camera.position.x += (mouseX * 5 - camera.position.x) * 0.05;
+            camera.position.y += (mouseY * 5 - camera.position.y) * 0.05;
+            camera.lookAt(scene.position);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Audio Context for click sounds
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playClickSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+        
+        function playOperatorSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 600;
+            oscillator.type = 'square';
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.15);
+        }
+        
+        function playEqualsSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 1000;
+            oscillator.type = 'triangle';
+            
+            gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        }
+
+        // Calculator Logic
+        let currentInput = '0';
+        let previousInput = '';
+        let operator = null;
+        let shouldResetDisplay = false;
+        let displayExpression = '0';
+        let calculationHistory = [];
+
+        const display = document.getElementById('display');
+
+        function updateDisplay() {
+            display.textContent = displayExpression;
+            
+            // Add pulse animation on update
+            display.style.animation = 'none';
+            setTimeout(() => {
+                display.style.animation = '';
+            }, 10);
+        }
+
+        function appendNumber(number) {
+            playClickSound();
+            
+            if (shouldResetDisplay) {
+                currentInput = number;
+                displayExpression = number;
+                shouldResetDisplay = false;
+            } else {
+                if (number === '.' && currentInput.includes('.')) return;
+                
+                if (currentInput === '0' && number !== '.') {
+                    currentInput = number;
+                    displayExpression = number;
+                } else {
+                    currentInput += number;
+                    displayExpression += number;
+                }
+            }
+            
+            updateDisplay();
+            createClickEffect();
+        }
+
+        function appendOperator(op) {
+            playOperatorSound();
+            
+            if (operator !== null && !shouldResetDisplay) {
+                calculate();
+                previousInput = currentInput;
+            } else {
+                previousInput = currentInput;
+            }
+            
+            operator = op;
+            
+            // Display the operator symbol
+            const operatorSymbols = {
+                '+': ' + ',
+                '-': ' − ',
+                '*': ' × ',
+                '/': ' ÷ ',
+                '%': ' % '
+            };
+            
+            displayExpression = previousInput + operatorSymbols[op];
+            updateDisplay();
+            
+            shouldResetDisplay = true;
+            createClickEffect();
+        }
+
+        function calculate() {
+            playEqualsSound();
+            
+            if (operator === null) return;
+            if (shouldResetDisplay && previousInput === '') return;
+            
+            const prev = parseFloat(previousInput);
+            const current = parseFloat(currentInput);
+            
+            if (isNaN(prev) || isNaN(current)) {
+                currentInput = 'Error';
+                displayExpression = 'Error';
+                updateDisplay();
+                return;
+            }
+            
+            let result;
+            const operatorSymbols = {
+                '+': '+',
+                '-': '−',
+                '*': '×',
+                '/': '÷',
+                '%': '%'
+            };
+            
+            switch (operator) {
+                case '+':
+                    result = prev + current;
+                    break;
+                case '-':
+                    result = prev - current;
+                    break;
+                case '*':
+                    result = prev * current;
+                    break;
+                case '/':
+                    if (current === 0) {
+                        currentInput = 'Error';
+                        displayExpression = 'Error';
+                        operator = null;
+                        shouldResetDisplay = true;
+                        updateDisplay();
+                        return;
+                    }
+                    result = prev / current;
+                    break;
+                case '%':
+                    result = prev % current;
+                    break;
+                default:
+                    return;
+            }
+            
+            // Round to avoid floating point errors
+            result = Math.round(result * 100000000) / 100000000;
+            
+            // Save to history
+            const historyEntry = `${prev} ${operatorSymbols[operator]} ${current} = ${result}`;
+            calculationHistory.unshift(historyEntry);
+            if (calculationHistory.length > 1) {
+                calculationHistory = calculationHistory.slice(0, 1);
+            }
+            
+            // Update history display
+            const historyDiv = document.getElementById('history');
+            if (historyDiv) {
+                historyDiv.textContent = historyEntry;
+                historyDiv.style.animation = 'fadeIn 0.5s ease-in';
+            }
+            
+            currentInput = result.toString();
+            displayExpression = result.toString();
+            previousInput = '';
+            operator = null;
+            shouldResetDisplay = true;
+            updateDisplay();
+            createCalculateEffect();
+        }
+
+        function clearDisplay() {
+            playOperatorSound();
+            currentInput = '0';
+            previousInput = '';
+            operator = null;
+            shouldResetDisplay = false;
+            displayExpression = '0';
+            
+            // Clear history display
+            const historyDiv = document.getElementById('history');
+            if (historyDiv) {
+                historyDiv.textContent = '\u200B';
+            }
+            
+            updateDisplay();
+            createClearEffect();
+        }
+
+        function deleteLast() {
+            playClickSound();
+            if (displayExpression.length > 1) {
+                displayExpression = displayExpression.slice(0, -1);
+                currentInput = displayExpression;
+            } else {
+                displayExpression = '0';
+                currentInput = '0';
+            }
+            updateDisplay();
+        }
+
+        // Visual effects
+        function createClickEffect() {
+            // Only create particles on desktop for better mobile performance
+            if (window.innerWidth < 768) return;
+            
+            // Particle burst effect
+            const colors = [0x6366f1, 0x8b5cf6, 0xec4899];
+            const burstGeometry = new THREE.BufferGeometry();
+            const burstCount = 15;
+            const burstArray = new Float32Array(burstCount * 3);
+            
+            for(let i = 0; i < burstCount * 3; i += 3) {
+                burstArray[i] = (Math.random() - 0.5) * 2;
+                burstArray[i + 1] = (Math.random() - 0.5) * 2;
+                burstArray[i + 2] = camera.position.z - 10;
+            }
+            
+            burstGeometry.setAttribute('position', new THREE.BufferAttribute(burstArray, 3));
+            
+            const burstMaterial = new THREE.PointsMaterial({
+                size: 0.5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                transparent: true,
+                opacity: 1,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const burst = new THREE.Points(burstGeometry, burstMaterial);
+            scene.add(burst);
+            
+            let opacity = 1;
+            const burstAnimation = setInterval(() => {
+                opacity -= 0.05;
+                burstMaterial.opacity = opacity;
+                burst.position.y += 0.1;
+                
+                if (opacity <= 0) {
+                    scene.remove(burst);
+                    burstGeometry.dispose();
+                    burstMaterial.dispose();
+                    clearInterval(burstAnimation);
+                }
+            }, 30);
+        }
+
+        function createCalculateEffect() {
+            meshes.forEach(mesh => {
+                mesh.material.opacity = 0.8;
+                setTimeout(() => {
+                    mesh.material.opacity = 0.3;
+                }, 300);
+            });
+        }
+
+        function createClearEffect() {
+            particlesMesh.rotation.x = 0;
+            particlesMesh.rotation.y = 0;
+        }
+
+        // Keyboard support
+        document.addEventListener('keydown', (event) => {
+            if (event.key >= '0' && event.key <= '9') {
+                appendNumber(event.key);
+            } else if (event.key === '.') {
+                appendNumber('.');
+            } else if (event.key === '+' || event.key === '-' || event.key === '*' || event.key === '/') {
+                appendOperator(event.key);
+            } else if (event.key === '%') {
+                appendOperator('%');
+            } else if (event.key === 'Enter' || event.key === '=') {
+                calculate();
+            } else if (event.key === 'Escape' || event.key === 'c' || event.key === 'C') {
+                clearDisplay();
+            } else if (event.key === 'Backspace') {
+                deleteLast();
+            }
+        });
+    </script>
+</body>
+</html>
